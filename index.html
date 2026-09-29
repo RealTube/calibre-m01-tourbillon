@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calibre M-01 Tourbillon</title>
+<link rel="icon" href="data:,">
+<meta name="description" content="A fully working flying-tourbillon wristwatch built entirely in code: true gear ratios, a beating Swiss lever escapement, and every part explorable in 3D.">
+<meta property="og:title" content="Calibre M-01 · Tourbillon Volant">
+<meta property="og:description" content="A fully working mechanical watch, generated procedurally with three.js.">
+<meta property="og:image" content="https://realtube.github.io/calibre-m01-tourbillon/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <script type="module" crossorigin src="./assets/index-CMRA6eYf.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C9wgwzeH.css">
+</head>
+<body>
+<canvas id="gl" aria-label="Interactive 3D model of a flying tourbillon wristwatch"></canvas>
+
+<div id="loader" role="status" aria-live="polite">
+  <p class="loader-mark">Atelier Meridian</p>
+  <p class="loader-cal">Calibre M-01 · Tourbillon Volant</p>
+  <div class="loader-bar"><i id="loader-fill"></i></div>
+  <p class="loader-msg" id="loader-msg">Preparing the bench…</p>
+</div>
+
+<header class="brand">
+  <p class="wordmark">Atelier Meridian</p>
+  <p class="calibre">Calibre M-01 · Tourbillon Volant</p>
+</header>
+
+<section class="readouts" aria-label="Movement data">
+  <div class="ro ro-time"><span class="k">Watch time</span><span class="v" id="ro-time">--:--:--</span></div>
+  <div class="ro"><span class="k">Beat</span><span class="v">21,600 vph · 3 Hz</span></div>
+  <div class="ro"><span class="k">Amplitude</span><span class="v" id="ro-amp">280°</span></div>
+  <div class="ro ro-power">
+    <span class="k">Power reserve</span><span class="v" id="ro-power">62 h</span>
+    <div class="gauge" aria-hidden="true"><i id="ro-gauge"></i></div>
+  </div>
+  <div class="ro"><span class="k">Jewels · Parts</span><span class="v" id="ro-count">–</span></div>
+  <button class="chip sync" id="sync" type="button" hidden>Set to local time</button>
+</section>
+
+<aside class="drawer" id="drawer" aria-label="Components">
+  <button class="drawer-head" id="drawer-toggle" type="button" aria-expanded="true">
+    <span>Components</span><span class="count" id="drawer-count"></span><span class="chev" aria-hidden="true"></span>
+  </button>
+  <div class="tree" id="tree"></div>
+</aside>
+
+<aside class="card" id="card" hidden aria-live="polite">
+  <button class="card-close" id="card-close" type="button" aria-label="Close">×</button>
+  <p class="card-cat" id="card-cat"></p>
+  <h2 class="card-name" id="card-name"></h2>
+  <p class="card-desc" id="card-desc"></p>
+  <dl class="card-specs" id="card-specs"></dl>
+  <div class="card-actions">
+    <button class="chip" id="act-isolate" type="button" aria-pressed="false">Isolate</button>
+    <button class="chip" id="act-follow" type="button" aria-pressed="false">Follow</button>
+    <button class="chip chip-gold" id="act-wind" type="button" hidden>Hold to wind</button>
+  </div>
+</aside>
+
+<nav class="dock" aria-label="Controls">
+  <div class="dock-row">
+    <div class="seg" role="group" aria-label="Views">
+      <button type="button" data-view="dial">Dial</button>
+      <button type="button" data-view="movement">Movement</button>
+      <button type="button" data-view="profile">Profile</button>
+      <button type="button" data-view="tourbillon">Tourbillon</button>
+      <button type="button" data-view="exploded">Exploded</button>
+    </div>
+  </div>
+  <div class="dock-row">
+    <label class="explode" for="explode">
+      <span>Assembled</span>
+      <input type="range" id="explode" min="0" max="1" step="0.001" value="0">
+      <span>Exploded</span>
+    </label>
+    <div class="seg speed" role="group" aria-label="Speed">
+      <button type="button" data-speed="0" aria-label="Pause">❚❚</button>
+      <button type="button" data-speed="0.05">1/20×</button>
+      <button type="button" data-speed="1" class="on">1×</button>
+      <button type="button" data-speed="60">60×</button>
+      <button type="button" data-speed="3600">3600×</button>
+    </div>
+    <div class="seg toggles" role="group" aria-label="Display">
+      <button type="button" id="t-xray" aria-pressed="false">X-ray</button>
+      <button type="button" id="t-night" aria-pressed="false">Night</button>
+      <button type="button" id="t-sound" aria-pressed="false">Sound</button>
+    </div>
+    <div class="finish" role="group" aria-label="Case finish">
+      <button type="button" data-finish="rose" class="sw sw-rose on" aria-label="5N rose gold"></button>
+      <button type="button" data-finish="platinum" class="sw sw-plat" aria-label="Platinum"></button>
+      <button type="button" data-finish="dlc" class="sw sw-dlc" aria-label="Black DLC"></button>
+    </div>
+    <button type="button" class="wind" id="wind">Hold to wind</button>
+  </div>
+</nav>
+
+<p class="hint" id="hint">Drag to orbit · Scroll to zoom · Click any part<span class="keys"> · 1–5 views · E explode · X x-ray · N night · Space pause · hold W to wind</span></p>
+<div class="tooltip" id="tooltip" hidden></div>
+<div class="toast" id="toast" hidden></div>
+<p class="skip" id="skip" hidden>Click anywhere to skip the intro</p>
+
+</body>
+</html>
