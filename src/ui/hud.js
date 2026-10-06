@@ -77,6 +77,7 @@ export function createHUD(h) {
   document.querySelectorAll('[data-finish]').forEach((b) => b.addEventListener('click', () => h.onFinish(b.dataset.finish)));
   bindHold($('wind'), h.onWind);
   $('sync').addEventListener('click', () => h.onSync());
+  $('film-play').addEventListener('click', () => h.onFilm());
 
   function setFill(el) {
     el.style.setProperty('--fill', `${(parseFloat(el.value) * 100).toFixed(1)}%`);

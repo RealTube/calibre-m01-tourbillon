@@ -7,7 +7,7 @@
 Every gear meshes at its true ratio. The escapement beats six times a second. The tourbillon cage turns once a minute. The hands show your local time.<br>
 No 3D models, no textures, no image files: all 123 components are generated procedurally with three.js.
 
-[**▶ Live demo**](https://realtube.github.io/calibre-m01-tourbillon/) &nbsp;·&nbsp; [How it works](docs/ARCHITECTURE.md) &nbsp;·&nbsp; [Horology primer](docs/HOROLOGY.md)
+[**▶ Live demo**](https://realtube.github.io/calibre-m01-tourbillon/) &nbsp;·&nbsp; [How it works](docs/ARCHITECTURE.md) &nbsp;·&nbsp; [The film](docs/CINEMATIC.md) &nbsp;·&nbsp; [Horology primer](docs/HOROLOGY.md)
 
 ![three.js](https://img.shields.io/badge/three.js-r186-000000?logo=threedotjs&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
@@ -39,6 +39,7 @@ No 3D models, no textures, no image files: all 123 components are generated proc
 - **Procedural finishing.** Côtes de Genève stripes, perlage, clous de Paris guilloché and circular graining are all generated as normal and roughness maps at startup. The page also includes ruby jewels in polished gold settings, heat-blued screws with their slots aligned, and a hand-stitched leather strap.
 - **Click any part to inspect it.** Each part has an encyclopedia card with its tooth count, live speed and material, plus **Isolate**, which turns everything else into a blueprint ghost, and **Follow**, which rides the camera along with a moving part.
 - **Live controls.** Speed runs from pause through 1/20× and 1× up to 3600×. There are also X-ray, a Night mode where the lume glows, three case metals, crown winding with a working ratchet and click, a power reserve that runs down, and synthesized tick-tock audio.
+- **A film, on desktop.** **Play film** (or `C`) hides the interface and runs an 82-second trailer on the live model. It opens on glowing lume in a dark room, then a strip light sweeps the bezel, sparks fly, the tourbillon drops into 1/20× slow motion, time-lapses to 3600×, and the watch explodes. The camera then flies through the floating parts with callouts, shows blueprint isolates, reassembles part by part, winds the crown and cycles the three metals. The score is synthesized live and locked to the movement: 90 BPM is 21,600 vph ÷ 240, and the arpeggio is played by the escapement's own beats, so it slows down in slow motion. [How it's made and how to edit it →](docs/CINEMATIC.md)
 - **Fast start.** The app loads in about 2 seconds and needs no external assets. It adapts render quality on slower GPUs, and the layout works on a phone.
 
 ## Gallery
@@ -51,6 +52,8 @@ No 3D models, no textures, no image files: all 123 components are generated proc
 | **Exploded view.** Crystal, bezel, dial, motion works, plate, train, bridges and case | **Isolate.** The pallet fork and its two ruby pallet stones |
 | <img src="docs/media/night.png" alt="Night mode with glowing lume"> | <img src="docs/media/xray.png" alt="X-ray mode showing the movement through a ghosted case"> |
 | **Night mode.** The lume on the hands and indices glows through bloom | **X-ray.** The case and dial fade to a fresnel ghost |
+| <img src="docs/media/film-explosion.jpg" alt="The film: the watch exploding in a storm of sparks"> | <img src="docs/media/film-flythrough.jpg" alt="The film: flying through the exploded movement"> |
+| **The film: the explosion.** Sparks are velocity-stretched streaks solved in a shader | **The film: the fly-through.** The camera travels along the exploded stack |
 
 <p align="center">
 <img src="docs/media/inspect.png" alt="Selecting the balance wheel shows its encyclopedia card" width="72%">
@@ -90,7 +93,9 @@ motion works: cannon 12 ─▶ minute wheel 36 / minute pinion 10 ─▶ hour wh
 | `E` / `X` / `N` | Explode · X-ray · Night |
 | `Space` | Pause and resume |
 | Hold `W` or **Hold to wind** | Wind the crown |
-| `Esc` | Deselect |
+| `C` | Play the film (desktop) |
+| `Esc` | Deselect, or leave the film |
+| `M` | Mute the film |
 
 ## Getting started
 
@@ -104,7 +109,7 @@ npm run dev          # http://localhost:5173
 | Script | What it does |
 |---|---|
 | `npm run dev` | Dev server with hot reload. It also runs the kinematics self-test and prints the result as a table in the browser console. |
-| `npm run build` | Production build into `dist/` (about 200 KB gzipped). |
+| `npm run build` | Production build into `dist/` (about 220 KB gzipped; the film's area-light tables, about 100 KB, load only when it plays). |
 | `npm run artifact` | Builds, then inlines everything into a single self-contained `dist/artifact.html`. |
 | `npm run deploy` | Builds and publishes `dist/` to GitHub Pages. |
 
@@ -130,10 +135,13 @@ src/
 ├── scene/                   renderer + post-processing, HDR studio lighting
 ├── interaction/             camera rig, picking, exploder
 ├── audio/tick.js            synthesized tick-tock and ratchet click (WebAudio)
+├── cinematic/               the film: director, shot list and tracks, light rig and sparks, score, overlay
 └── ui/                      HUD and styles
 ```
 
 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** is the technical deep dive: how the SDF bridges are generated and contoured, the escapement math, mesh phasing, the render pipeline, and the performance work that took load time from 15 s to under 2 s.
+
+**[docs/CINEMATIC.md](docs/CINEMATIC.md)** covers the film: the shot list with timings, every file and track, recipes for changing cameras, light, text and sound, and the testing workflow.
 
 **[docs/HOROLOGY.md](docs/HOROLOGY.md)** explains how a mechanical watch and a tourbillon work, mapped to what you see on screen.
 

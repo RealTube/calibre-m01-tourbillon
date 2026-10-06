@@ -70,6 +70,7 @@
       <button type="button" data-view="tourbillon">Tourbillon</button>
       <button type="button" data-view="exploded">Exploded</button>
     </div>
+    <button type="button" class="film" id="film-play" aria-label="Play the film (C)"><span class="film-ico" aria-hidden="true"></span>Play film<span class="film-dur">1:22</span></button>
   </div>
   <div class="dock-row">
     <label class="explode" for="explode">
@@ -98,10 +99,28 @@
   </div>
 </nav>
 
-<p class="hint" id="hint">Drag to orbit · Scroll to zoom · Click any part<span class="keys"> · 1–5 views · E explode · X x-ray · N night · Space pause · hold W to wind</span></p>
+<p class="hint" id="hint">Drag to orbit · Scroll to zoom · Click any part<span class="keys"> · 1–5 views · E explode · X x-ray · N night · Space pause · hold W to wind · C film</span></p>
 <div class="tooltip" id="tooltip" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <p class="skip" id="skip" hidden>Click anywhere to skip the intro</p>
+
+<div class="cine" id="cine" hidden>
+  <div class="cine-bar top">
+    <p class="cine-chapter" id="cine-chapter"></p>
+    <div class="cine-ui">
+      <button type="button" id="cine-sound" aria-pressed="true">Sound on</button>
+      <button type="button" id="cine-exit">Exit<kbd>Esc</kbd></button>
+    </div>
+  </div>
+  <div class="cine-bar bottom">
+    <div class="cine-progress"><i id="cine-progress"></i><span class="cine-ticks" id="cine-ticks"></span></div>
+  </div>
+  <svg class="cine-lines" id="cine-lines" aria-hidden="true"></svg>
+  <div class="cine-labels" id="cine-labels" aria-hidden="true"></div>
+  <div class="cine-title" id="cine-title" aria-live="polite"></div>
+  <div class="cine-lower" id="cine-lower" aria-live="polite"></div>
+  <div class="cine-data" id="cine-data"></div>
+</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>

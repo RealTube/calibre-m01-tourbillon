@@ -12,6 +12,7 @@ import { createPicker } from './interaction/picking.js';
 import { createExploder } from './interaction/explode.js';
 import { createAudio } from './audio/tick.js';
 import { createHUD, loader, loaderDone } from './ui/hud.js';
+import { createCinematic } from './cinematic/director.js';
 
 // yield a frame so the loader can paint (falls back to a timeout in hidden tabs)
 const frame = () => new Promise((r) => {
@@ -79,6 +80,7 @@ async function boot() {
     isolate: false, follow: false, xray: false, night: false, nightT: 0,
     finish: 'rose', lastSpeed: 1, winding: false, loading: true, intro: true, dof: 0, dofTarget: 0,
     viewShift: 0,
+    cine: false, cineFocus: null,
   };
   const meshesOf = (id) => (id ? watch.parts.get(id)?.meshes ?? [] : []);
 
@@ -88,7 +90,8 @@ async function boot() {
   function applyVisibility() {
     for (const [id, p] of watch.parts) {
       let mode = 'normal';
-      if (st.isolate && st.selected && id !== st.selected) mode = XRAY_HIDE.has(id) ? 'hidden' : 'dim';
+      if (st.cineFocus) mode = st.cineFocus.has(id) ? 'normal' : XRAY_HIDE.has(id) ? 'hidden' : 'ghost';
+      else if (st.isolate && st.selected && id !== st.selected) mode = XRAY_HIDE.has(id) ? 'hidden' : 'dim';
       else if (st.xray && id !== st.selected) mode = XRAY_HIDE.has(id) ? 'hidden' : XRAY_GHOST.has(id) ? 'ghost' : 'normal';
       for (const m of p.meshes) {
         if (!m.userData.orig) m.userData.orig = { material: m.material, cast: m.castShadow };
@@ -192,7 +195,7 @@ async function boot() {
   }
 
   function select(id, { fly = true } = {}) {
-    if (st.intro) return;
+    if (st.intro || st.cine) return;
     if (id === st.selected && id) { if (fly) frameParts(id); return; }
     st.selected = id;
     st.isolate = false;
@@ -278,6 +281,7 @@ async function boot() {
       } else rig.setFollow(null);
     },
     onSync: () => { kin.syncToNow(); setSpeed(1); hud.toast('Set to local time'); },
+    onFilm: () => cine.play(),
   });
 
   function setSpeed(v) {
@@ -297,14 +301,17 @@ async function boot() {
     if (on) hud.pulseWind(false);
   }
 
-  kin.on('beat', (k) => audio.tick(k % 2 === 0, kin.speed));
-  kin.on('click', () => audio.click());
+  // during the film the score plays the beats itself, at exact times
+  kin.on('beat', (k) => { if (!st.cine) audio.tick(k % 2 === 0, kin.speed); });
+  kin.on('click', () => { if (!st.cine) audio.click(); });
   kin.on('stop', () => {
+    if (st.cine) return;
     hud.toast('Power reserve depleted. Hold Wind to restart the watch.', 5200);
     hud.pulseWind(true);
   });
   let fullToastShown = false;
   kin.on('power', (p) => {
+    if (st.cine) return;
     if (p >= MAX_POWER - 0.01 && !fullToastShown) {
       fullToastShown = true;
       hud.toast('Fully wound: 72 hours in the mainspring');
@@ -317,7 +324,7 @@ async function boot() {
   const picker = createPicker({
     camera, dom: canvas, root: watch.root,
     onHover: (id, c) => {
-      if (st.intro) return;
+      if (st.intro || st.cine) return;
       if (id !== st.hovered) { st.hovered = id; updateOutline(); }
       hud.tooltip(id, c.x, c.y);
       canvas.style.cursor = id ? 'pointer' : 'grab';
@@ -325,6 +332,51 @@ async function boot() {
     onSelect: (id) => {
       if (st.ignoreClick) { st.ignoreClick = false; return; }
       select(id);
+    },
+  });
+
+  // ── the film ──────────────────────────────────────────
+  const cine = createCinematic({
+    scene, camera, R, studio, watch, kin, M, audio, stats: watch.stats, pose,
+    setFinish: (key) => setFinish(key),
+    setFocus: (ids) => { st.cineFocus = ids ? new Set(ids) : null; applyVisibility(); },
+    // hand the stage to the film: deselect, stop winding, drop x-ray, hide the interface
+    enter() {
+      const saved = { finish: st.finish, xray: st.xray, speed: kin.speed, power: kin.power, running: kin.running };
+      select(null, { fly: false });
+      st.cine = true;
+      st.hovered = st.rowHover = null;
+      setWinding(false);
+      st.xray = false;
+      applyVisibility();
+      rig.setFollow(null);
+      rig.cancel();
+      rig.controls.enabled = false;
+      camera.clearViewOffset();
+      st.viewShift = st.viewShiftY = 0;
+      hud.tooltip(null);
+      document.body.classList.add('cine');
+      return saved;
+    },
+    // and take it back
+    leave(saved, heroTarget) {
+      st.cine = false;
+      st.cineFocus = null;
+      st.xray = saved.xray;
+      applyVisibility();
+      setFinish(st.finish);
+      kin.windRate = 0;
+      kin.power = saved.power;
+      kin.running = saved.running;
+      kin.syncToNow();
+      setSpeed(saved.speed);
+      exploder.set(0, { immediate: true });
+      hud.setExplode(0, true);
+      st.dof = st.dofTarget = 0;
+      rig.controls.target.copy(heroTarget);
+      rig.controls.enabled = true;
+      rig.controls.update();
+      document.body.classList.remove('cine');
     },
   });
 
@@ -336,7 +388,14 @@ async function boot() {
     if (st.loading || e.target.closest('input, textarea')) return;
     if (st.intro) { endIntro(); return; }
     const k = e.key.toLowerCase();
-    if (k >= '1' && k <= '5') goView(views[+k - 1]);
+    if (st.cine) {
+      if (k === 'escape') cine.stop();
+      else if (k === 'm') cine.toggleSound();
+      else if (k === ' ') e.preventDefault();
+      return;
+    }
+    if (k === 'c' && !e.repeat) cine.play();
+    else if (k >= '1' && k <= '5') goView(views[+k - 1]);
     else if (k === 'e') { const to = exploder.target > 0.5 ? 0 : 1; exploder.set(to, { duration: 2.2 }); }
     else if (k === 'x') document.getElementById('t-xray').click();
     else if (k === 'n') document.getElementById('t-night').click();
@@ -344,14 +403,14 @@ async function boot() {
     else if (k === 'escape') select(null);
     else if (k === 'w' && !e.repeat) setWinding(true);
   });
-  window.addEventListener('keyup', (e) => { if (!st.loading && e.key.toLowerCase() === 'w') setWinding(false); });
+  window.addEventListener('keyup', (e) => { if (!st.loading && !st.cine && e.key.toLowerCase() === 'w') setWinding(false); });
   window.addEventListener('resize', () => R.resize());
   // a real watch keeps running while you look away
   let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) hiddenAt = performance.now();
     else if (hiddenAt) {
-      kin.advance((performance.now() - hiddenAt) / 1000);
+      if (!st.cine) kin.advance((performance.now() - hiddenAt) / 1000);
       last = performance.now();
       hiddenAt = 0;
     }
@@ -423,12 +482,8 @@ async function boot() {
     requestAnimationFrame(tick);
   }
 
-  function step(realDt, measure = false) {
-    const dt = Math.min(realDt, 0.1);
-    introT += dt;
-
-    kin.update(realDt); // the watch keeps true time even on slow frames
-    watch.update(kin.s);
+  // the interactive app's own per-frame staging (paused while the film plays)
+  function stage(dt) {
     exploder.update(dt);
     hud.setExplode(exploder.value);
 
@@ -461,6 +516,17 @@ async function boot() {
     rig.update(dt);
     studio.follow(camera, rig.controls.target);
     picker.frame(!rig.busy);
+    cine.update(dt); // fades the picture back up after an early exit
+  }
+
+  function step(realDt, measure = false) {
+    const dt = Math.min(realDt, 0.1);
+    introT += dt;
+
+    kin.update(realDt); // the watch keeps true time even on slow frames
+    watch.update(kin.s);
+    if (cine.active) cine.update(dt); // the film drives camera, lights, speed and explosion
+    else stage(dt);
 
     readoutTimer -= dt;
     if (readoutTimer <= 0) {
@@ -482,7 +548,7 @@ async function boot() {
       if (st.selected === 'mainspring') hud.setLive('power', `${kin.power.toFixed(1)} of ${MAX_POWER} h`);
     }
 
-    R.composer.render(dt);
+    if (!cine.holdRender) R.composer.render(dt);
 
     // adaptive quality: shed AO, then resolution, if frames run long
     if (!st.intro && measure && !document.hidden) {
@@ -504,7 +570,7 @@ async function boot() {
   if (import.meta.env.DEV) {
     // test hook: advance the app deterministically even when the tab is hidden
     window.__app = {
-      st, goView, select, exploder, rig, setSpeed, applyVisibility, kin, camera,
+      st, goView, select, exploder, rig, setSpeed, applyVisibility, kin, camera, cine,
       run(seconds = 1, fps = 30) { for (let i = 0; i < seconds * fps; i++) step(1 / fps); },
     };
   }

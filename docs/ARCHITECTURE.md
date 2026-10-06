@@ -11,6 +11,7 @@ This is a technical tour of how Calibre M-01 is generated, animated and rendered
 - [7. Interaction](#7-interaction)
 - [8. Performance](#8-performance)
 - [9. Testing](#9-testing)
+- [10. The film](#10-the-film)
 
 ---
 
@@ -232,3 +233,25 @@ The watch keeps true time regardless of frame rate. Simulation time advances by 
 
 - **Kinematics self-test.** In development, `kin.selfTest()` runs on boot and prints a table in the console. It asserts the cage (1 rev/min), escape wheel (12 rev/min relative to the cage), third/cage ratio, centre wheel (1 rev/h), barrel, both hands, the motion works, 360 beats per cage turn, and agreement with the wall clock.
 - **Deterministic stepping.** Also in development, `window.__app.run(seconds)` advances the full frame loop by fixed steps. This makes headless screenshots and GIF captures reproducible, even when the tab is hidden and `requestAnimationFrame` is paused. All the media in `docs/media` was captured this way with headless Chrome.
+
+---
+
+## 10. The film
+
+This section is the overview. **[CINEMATIC.md](CINEMATIC.md)** is the full guide: the shot-by-shot timeline, every track and voice, editing recipes, and the testing workflow.
+
+**Play film** (desktop only, or `C`) runs an 82-second trailer on top of the live app, with `src/cinematic/` taking over the camera, the lights, the speed and the explosion. Nothing is pre-rendered; every frame is the same model you can click.
+
+- **Director (`director.js`).** It moves through four phases: *preroll*, *film*, *outro* and back to *idle*. The preroll fades to black, and under the black it loads the area-light tables, sets the first frame and calls `compileAsync`, so the new lights' shader variants compile unseen. While the film plays, `main.js` skips its own staging (orbit controls, night fade, DoF, picking) and calls `cine.update(dt)` instead. On exit, `enter()` and `leave()` in `main.js` restore the finish, speed, power, X-ray state and time. The hands are resynced to local time after the time-lapse.
+- **Shots are pure functions of time (`shots.js`).** Each shot maps `u ∈ [0,1]` to a position, target, fov, roll and depth of field, usually as an orbit about the dial normal. The finale ends exactly on the app's own hero pose, so the hand-back is seamless. Lighting, exposure, bloom, rims, the beam, grain and kinematic speed are keyframed tracks (`seq()`), so the whole film can be scrubbed with `__cine.seek(t)` in development. One-shots (titles, spark bursts, callouts, flashes) fire on the frame clock, while sounds are scheduled 150 ms ahead on the audio clock.
+- **The grid.** Every cut and hit falls on a 90 BPM beat (⅔ s), which is 21,600 vph ÷ 240: one musical beat is four escapement beats.
+- **Camera feel.** Handheld drift is low-frequency value noise. Impacts add *trauma*, which decays linearly and drives the shake as trauma² (the "juicing your camera" model). Both are applied as rotations after `lookAt`, so `camera.up` stays intact for OrbitControls.
+- **Light (`fx.js`).** A `RectAreaLight` strip is the classic product-photography sweep. It travels across the frame in camera space, so its long highlight slides over the polished bezel. Rim spots sit wide and low, because the crystal is almost flat and would otherwise mirror them into the lens. A cone with a fresnel-additive shader and dust motes that brighten inside it make the opening beam.
+- **Sparks.** About 1,800 instanced quads. Each one's path (drag on the launch velocity plus gravity) is solved analytically in the vertex shader. The head and a slightly earlier tail are projected to screen space, giving a velocity-stretched streak, and the colour runs down a heat ramp. They are written in HDR so bloom catches them.
+- **Glints.** Star-filter sprites sit on the bezel's crest, each lit by its Blinn half-vector against the moving strip light, so a four-point star rides the highlight. The brightest glint also anchors the anamorphic flare.
+- **Final grade.** A `ShaderPass` after `OutputPass`, in display space, adds fade, flash, radial chromatic aberration, an analytic anamorphic flare (blue streak, glow, ghosts), a gentle S-curve, a cool shadow tint, vignette and grain.
+- **Score (`score.js`).** It is synthesized live through a limiter and a generated convolution reverb.
+  - **Voices:** a sub drone, saw pads, a braam (detuned saws through `tanh` and a filter envelope), impacts (sub drop, noise body, crack, inharmonic steel partials), noise-and-saw risers with accelerating tremolo, reverse swells, whooshes, a sparkle shimmer tuned to E major, a heartbeat, and a "seat" click for every part as the watch reassembles.
+  - **Shepard tone:** octave-spaced sines driven by `setValueCurveAtTime` under the time-lapse.
+  - **Escapement arpeggio:** the director predicts when the train crosses each half-beat (`(n − ½) / 6 / speed` seconds ahead) and schedules a tick and an arpeggio note there. In 1/20× slow motion the music slows down with the watch.
+- **Cost.** The area-light LTC tables (about 300 KB raw) are a dynamic import, so the first load is unchanged. In GPU timer queries, film shots cost about the same as the app's own views.
